@@ -1,0 +1,47 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+
+  tasks:
+    # Update All packages
+    - name: Updating all the packages on the system
+      yum:
+        name: "*"
+        state: latest
+    #--------------------
+    # Installing Apache packages
+    - name: Installing httpd package
+      yum:
+        name: httpd
+
+    - name: Starting the httpd Service
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Enabling the httpd Service
+      systemd:
+        name: httpd
+        enabled: yes
+        masked: no
+    #-----------------------------
+    # Installing news_website files
+    - name: Coping the website files on public EC2 Instance
+      copy:
+        src: "{{ item }}"
+        dest: /var/www/html/
+      with_fileglob:
+        - ./files/website/*
+
+    - name: Copying the java script file to required location
+      template:
+        src: ./files/templates/scripts.js.j2
+        dest: /var/www/html/scripts.js
+
+    - name: Reloading the httpd service
+      systemd:
+        name: httpd
+        state: reloaded
+    #-------------------------------

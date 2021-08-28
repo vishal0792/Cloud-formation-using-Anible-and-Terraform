@@ -1,0 +1,76 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+
+  tasks:
+    # Update all packages
+    - name: Updating All packaes on the system
+      yum:
+        name: "*"
+        state: latest
+    #---------------------
+    # Installing Java packages
+    - name: Istalling Java package
+      shell: yum install java-1.8.0-openjdk -y
+    # ------------------------
+
+    # Installing Maven packages
+    - name: Installing Maven
+      yum:
+        name: maven
+        state: present
+    #--------------------------
+
+    # Installing Git and Cloning the project Repository
+    - name: Installing Git Package
+      yum:
+        name: git
+        state: present
+
+    - name: Creating a new new directory to clone the project repository On EC2
+      file:
+        path: "/home/ec2-user/news-api"
+        state: directory
+      become: yes
+      become_user: ec2-user
+
+    - name: Creating a new new directory to clone the project repository On local machine
+      git:
+        repo: https://github.com/Vikrant279/Group1-IADT
+        dest: "/home/ec2-user/news-api"
+      become: yes
+      become_user: ec2-user
+    #-------------------------------------------------
+    # Installing new-api files
+    - name: Executing Maven
+      shell: mvn clean install
+      register: mvn_result
+      args:
+        chdir: news-api/
+      become: yes
+      become_user: ec2-user
+
+    - name: Maven Output
+      debug:
+        var: mvn_result
+
+    - name: Copy API files to server
+      copy:
+        src: files/services/news-api.service
+        dest: /etc/systemd/system
+        owner: root
+        group: root
+      notify:
+        - Reloading the services
+        - Starting the API service
+    #-------------------------------------------------
+  handlers:
+    - name: Reloading the services
+      systemd:
+        daemon_reload: yes
+
+    - name: Starting the API service
+      systemd:
+        name: news-api
+        state: started
